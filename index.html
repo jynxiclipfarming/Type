@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typewriter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section class="preview">
+    <div id="dialogue"><span id="text"></span></div>
+  </section>
+
+  <section class="controls">
+    <textarea id="input" placeholder="Enter your text here..."></textarea>
+
+    <div class="control-row">
+      <label>Speed
+        <input id="speed" type="range" min="10" max="300" value="50">
+        <span id="speedValue">50 ms</span>
+      </label>
+
+      <label>Font Size
+        <input id="fontSize" type="range" min="8" max="38" value="20">
+        <span id="fontSizeValue">20px</span>
+      </label>
+
+      <button id="start">TYPE</button>
+      <button id="finish">FINISH</button>
+      <button id="clear">CLEAR</button>
+      <button id="spriteSheet">SPRITE SHEET</button>
+      <label class="export-mode-label">Export
+        <select id="spriteExportMode">
+          <option value="sheet">Full Sprite Sheet</option>
+          <option value="frame">Individual Frame</option>
+        </select>
+      </label>
+      <label id="frameSelectWrap" class="frame-select-wrap" hidden>Frame
+        <select id="frameSelect"></select>
+      </label>
+    </div>
+  </section>
+</main>
+<script src="script.js"></script>
+</body>
+</html>
