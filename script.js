@@ -1,176 +1,685 @@
 const input = document.getElementById('input');
 const text = document.getElementById('text');
+
 const speed = document.getElementById('speed');
 const speedValue = document.getElementById('speedValue');
+
 const fontSize = document.getElementById('fontSize');
 const fontSizeValue = document.getElementById('fontSizeValue');
+
 const dialogue = document.getElementById('dialogue');
+
 const startButton = document.getElementById('start');
 const finishButton = document.getElementById('finish');
 const clearButton = document.getElementById('clear');
 const spriteSheetButton = document.getElementById('spriteSheet');
 
-let timer = null;
-let currentIndex = 0;
-
-function updateSpeed(){ speedValue.textContent = `${speed.value} ms`; }
-function updateFontSize(){
-  const size = Number(fontSize.value);
-  dialogue.style.fontSize = `${size}px`;
-  fontSizeValue.textContent = `${size}px`;
-}
-speed.addEventListener('input', updateSpeed);
-fontSize.addEventListener('input', updateFontSize);
-updateSpeed(); updateFontSize();
-
-function typeText(){
-  clearTimeout(timer);
-  const value = input.value;
-  if(!value){ text.textContent=''; currentIndex=0; return; }
-  if(currentIndex >= value.length) return;
-  text.textContent = value.substring(0, currentIndex + 1);
-  currentIndex++;
-  timer = setTimeout(typeText, Number(speed.value));
-}
-
-startButton.addEventListener('click', ()=>{
-  clearTimeout(timer);
-  currentIndex=0;
-  text.textContent='';
-  typeText();
-});
-
-finishButton.addEventListener('click', ()=>{
-  clearTimeout(timer);
-  text.textContent=input.value;
-  currentIndex=input.value.length;
-});
-
-clearButton.addEventListener('click', ()=>{
-  clearTimeout(timer);
-  input.value='';
-  text.textContent='';
-  currentIndex=0;
-});
-
-async function waitForFont(){
-  if(document.fonts && document.fonts.load){
-    await document.fonts.load(`400 ${Number(fontSize.value)}px "Pretendard"`);
-  }
-}
-
 const spriteExportMode = document.getElementById('spriteExportMode');
 const frameSelectWrap = document.getElementById('frameSelectWrap');
 const frameSelect = document.getElementById('frameSelect');
 
-for(let i=1;i<=36;i++){
-  const option=document.createElement('option');
-  option.value=String(i);
-  option.textContent=String(i);
-  frameSelect.appendChild(option);
-}
+let timer = null;
+let currentIndex = 0;
 
-spriteExportMode.addEventListener('change', ()=>{
-  frameSelectWrap.hidden = spriteExportMode.value !== 'frame';
-});
 
-async function buildTypewriterFrames(){
-  const value=input.value;
-  if(!value){ alert('Enter some text first.'); return null; }
+// ============================================================
+// SPEED
+// ============================================================
 
-  const FRAME_WIDTH=170;
-  const FRAME_HEIGHT=170;
-  const COLUMNS=6;
-  const ROWS=6;
-  const TOTAL_SLOTS=36;
-  const PAD_X=8;
-  const PAD_Y=8;
-
-  if(value.length > TOTAL_SLOTS){
-    alert('This format supports up to 36 characters. Shorten the text to 36 characters or fewer.');
-    return null;
-  }
-
-  await waitForFont();
-
-  const canvas=document.createElement('canvas');
-  canvas.width=FRAME_WIDTH*COLUMNS;
-  canvas.height=FRAME_HEIGHT*ROWS;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#fff';
-  ctx.textAlign='left';
-  ctx.textBaseline='middle';
-
-  function fitFontSize(textValue){
-    let size=Number(fontSize.value)||20;
-    const maxWidth=FRAME_WIDTH-PAD_X*2;
-    const maxHeight=FRAME_HEIGHT-PAD_Y*2;
-    while(size>8){
-      ctx.font=`400 ${size}px "Pretendard", Arial, sans-serif`;
-      const m=ctx.measureText(textValue);
-      const h=(m.actualBoundingBoxAscent||size*0.8)+(m.actualBoundingBoxDescent||size*0.2);
-      if(m.width<=maxWidth && h<=maxHeight) return size;
-      size--;
+function updateSpeed() {
+    if (speedValue && speed) {
+        speedValue.textContent = `${speed.value} ms`;
     }
-    return 8;
-  }
-
-  for(let i=0;i<TOTAL_SLOTS;i++){
-    const shown=Math.min(i+1,value.length);
-    const frameText=value.substring(0,shown);
-    const col=i%COLUMNS;
-    const row=Math.floor(i/COLUMNS);
-    const frameX=col*FRAME_WIDTH;
-    const frameY=row*FRAME_HEIGHT;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(frameX,frameY,FRAME_WIDTH,FRAME_HEIGHT);
-    ctx.clip();
-    ctx.clearRect(frameX,frameY,FRAME_WIDTH,FRAME_HEIGHT);
-
-    const size=fitFontSize(frameText);
-    ctx.font=`400 ${size}px "Pretendard", Arial, sans-serif`;
-    ctx.fillText(frameText,frameX+PAD_X,frameY+FRAME_HEIGHT/2);
-    ctx.restore();
-  }
-  return {canvas, FRAME_WIDTH, FRAME_HEIGHT, COLUMNS, ROWS};
 }
 
-function downloadCanvas(canvas, filename){
-  canvas.toBlob(blob=>{
-    if(!blob){ alert('Could not create PNG.'); return; }
-    const url=URL.createObjectURL(blob);
-    const link=document.createElement('a');
-    link.href=url;
-    link.download=filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  },'image/png');
+
+// ============================================================
+// FONT SIZE
+// ============================================================
+
+function updateFontSize() {
+    if (!fontSize || !dialogue || !fontSizeValue) return;
+
+    const size = Number(fontSize.value) || 20;
+
+    dialogue.style.fontSize = `${size}px`;
+    fontSizeValue.textContent = `${size}px`;
 }
 
-spriteSheetButton.addEventListener('click', async ()=>{
-  const result=await buildTypewriterFrames();
-  if(!result) return;
 
-  if(spriteExportMode.value === 'frame'){
-    const frameNumber=Number(frameSelect.value)-1;
-    const col=frameNumber%result.COLUMNS;
-    const row=Math.floor(frameNumber/result.COLUMNS);
-    const frame=document.createElement('canvas');
-    frame.width=result.FRAME_WIDTH;
-    frame.height=result.FRAME_HEIGHT;
-    frame.getContext('2d').drawImage(
-      result.canvas,
-      col*result.FRAME_WIDTH,row*result.FRAME_HEIGHT,
-      result.FRAME_WIDTH,result.FRAME_HEIGHT,
-      0,0,result.FRAME_WIDTH,result.FRAME_HEIGHT
+if (speed) {
+    speed.addEventListener('input', updateSpeed);
+}
+
+if (fontSize) {
+    fontSize.addEventListener('input', updateFontSize);
+}
+
+updateSpeed();
+updateFontSize();
+
+
+// ============================================================
+// TYPEWRITER
+// ============================================================
+
+function typeText() {
+
+    clearTimeout(timer);
+
+    const value = input ? input.value : '';
+
+    if (!value) {
+        if (text) text.textContent = '';
+        currentIndex = 0;
+        return;
+    }
+
+    if (currentIndex >= value.length) {
+        return;
+    }
+
+    if (text) {
+        text.textContent =
+            value.substring(0, currentIndex + 1);
+    }
+
+    currentIndex++;
+
+    timer = setTimeout(
+        typeText,
+        Number(speed?.value) || 50
     );
-    downloadCanvas(frame,`typewriter-frame-${frameNumber+1}-170x170.png`);
-  } else {
-    downloadCanvas(result.canvas,'typewriter-sprite-sheet-1020x1020.png');
-  }
-});
+}
+
+
+if (startButton) {
+
+    startButton.addEventListener('click', () => {
+
+        clearTimeout(timer);
+
+        currentIndex = 0;
+
+        if (text) {
+            text.textContent = '';
+        }
+
+        typeText();
+    });
+}
+
+
+if (finishButton) {
+
+    finishButton.addEventListener('click', () => {
+
+        clearTimeout(timer);
+
+        if (text) {
+            text.textContent = input.value;
+        }
+
+        currentIndex = input.value.length;
+    });
+}
+
+
+if (clearButton) {
+
+    clearButton.addEventListener('click', () => {
+
+        clearTimeout(timer);
+
+        if (input) {
+            input.value = '';
+        }
+
+        if (text) {
+            text.textContent = '';
+        }
+
+        currentIndex = 0;
+    });
+}
+
+
+// ============================================================
+// PRETENDARD
+// ============================================================
+
+async function waitForFont() {
+
+    if (!document.fonts) return;
+
+    try {
+
+        const size =
+            Number(fontSize?.value) || 20;
+
+        await document.fonts.load(
+            `400 ${size}px "Pretendard"`
+        );
+
+        await document.fonts.ready;
+
+    } catch (error) {
+
+        console.warn(
+            'Pretendard could not be loaded:',
+            error
+        );
+    }
+}
+
+
+// ============================================================
+// FRAME SELECTOR
+// ============================================================
+
+if (frameSelect) {
+
+    frameSelect.innerHTML = '';
+
+    for (let i = 1; i <= 36; i++) {
+
+        const option =
+            document.createElement('option');
+
+        option.value = String(i);
+        option.textContent = `Frame ${i}`;
+
+        frameSelect.appendChild(option);
+    }
+}
+
+
+if (spriteExportMode && frameSelectWrap) {
+
+    function updateExportMode() {
+
+        frameSelectWrap.hidden =
+            spriteExportMode.value !== 'frame';
+    }
+
+    spriteExportMode.addEventListener(
+        'change',
+        updateExportMode
+    );
+
+    updateExportMode();
+}
+
+
+// ============================================================
+// BUILD SPRITE SHEET
+// ============================================================
+
+async function buildTypewriterFrames() {
+
+    const value =
+        input ? input.value : '';
+
+    if (!value) {
+
+        alert(
+            'Enter some text first.'
+        );
+
+        return null;
+    }
+
+
+    // ========================================================
+    // EXACT FORMAT
+    // ========================================================
+
+    const FRAME_WIDTH = 170;
+    const FRAME_HEIGHT = 170;
+
+    const COLUMNS = 6;
+    const ROWS = 6;
+
+    const TOTAL_SLOTS =
+        COLUMNS * ROWS;
+
+
+    // ========================================================
+    // ONE CHARACTER PER FRAME
+    // ========================================================
+
+    if (value.length > TOTAL_SLOTS) {
+
+        alert(
+            'This 6×6 format has 36 frames. ' +
+            'Because it reveals one character per frame, ' +
+            'the maximum is 36 characters.'
+        );
+
+        return null;
+    }
+
+
+    await waitForFont();
+
+
+    // ========================================================
+    // CANVAS
+    // ========================================================
+
+    const canvas =
+        document.createElement('canvas');
+
+    canvas.width =
+        FRAME_WIDTH * COLUMNS;
+
+    canvas.height =
+        FRAME_HEIGHT * ROWS;
+
+
+    const ctx =
+        canvas.getContext('2d');
+
+
+    if (!ctx) {
+
+        alert(
+            'Your browser could not create the canvas.'
+        );
+
+        return null;
+    }
+
+
+    // Transparent background
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    ctx.fillStyle =
+        '#ffffff';
+
+    ctx.textAlign =
+        'left';
+
+    ctx.textBaseline =
+        'middle';
+
+
+    // ========================================================
+    // PADDING
+    // ========================================================
+
+    const PAD_X = 8;
+    const PAD_Y = 8;
+
+
+    // ========================================================
+    // FIND FONT SIZE THAT FITS
+    // ========================================================
+
+    function fitFontSize(frameText) {
+
+        let size =
+            Number(fontSize?.value) || 20;
+
+
+        const maxWidth =
+            FRAME_WIDTH - PAD_X * 2;
+
+        const maxHeight =
+            FRAME_HEIGHT - PAD_Y * 2;
+
+
+        while (size > 6) {
+
+            ctx.font =
+                `400 ${size}px "Pretendard", sans-serif`;
+
+
+            const metrics =
+                ctx.measureText(frameText);
+
+
+            const width =
+                metrics.width;
+
+
+            const height =
+                (metrics.actualBoundingBoxAscent || size * 0.8) +
+                (metrics.actualBoundingBoxDescent || size * 0.2);
+
+
+            if (
+                width <= maxWidth &&
+                height <= maxHeight
+            ) {
+
+                return size;
+            }
+
+
+            size--;
+        }
+
+
+        return 6;
+    }
+
+
+    // ========================================================
+    // GENERATE 36 FRAMES
+    // ========================================================
+
+    for (
+        let i = 0;
+        i < TOTAL_SLOTS;
+        i++
+    ) {
+
+        const shown =
+            Math.min(
+                i + 1,
+                value.length
+            );
+
+
+        const frameText =
+            value.substring(
+                0,
+                shown
+            );
+
+
+        const col =
+            i % COLUMNS;
+
+
+        const row =
+            Math.floor(
+                i / COLUMNS
+            );
+
+
+        const frameX =
+            col * FRAME_WIDTH;
+
+
+        const frameY =
+            row * FRAME_HEIGHT;
+
+
+        // ----------------------------------------------------
+        // IMPORTANT:
+        // Completely isolate this frame.
+        // ----------------------------------------------------
+
+        ctx.save();
+
+
+        ctx.beginPath();
+
+        ctx.rect(
+            frameX,
+            frameY,
+            FRAME_WIDTH,
+            FRAME_HEIGHT
+        );
+
+        ctx.clip();
+
+
+        // Clear ONLY this frame.
+        ctx.clearRect(
+            frameX,
+            frameY,
+            FRAME_WIDTH,
+            FRAME_HEIGHT
+        );
+
+
+        // ----------------------------------------------------
+        // Fit text
+        // ----------------------------------------------------
+
+        const fittedSize =
+            fitFontSize(frameText);
+
+
+        ctx.font =
+            `400 ${fittedSize}px "Pretendard", sans-serif`;
+
+
+        // ----------------------------------------------------
+        // Draw
+        // ----------------------------------------------------
+
+        ctx.fillText(
+            frameText,
+            frameX + PAD_X,
+            frameY + FRAME_HEIGHT / 2
+        );
+
+
+        ctx.restore();
+    }
+
+
+    return {
+        canvas,
+        FRAME_WIDTH,
+        FRAME_HEIGHT,
+        COLUMNS,
+        ROWS,
+        TOTAL_SLOTS
+    };
+}
+
+
+// ============================================================
+// DOWNLOAD CANVAS
+// ============================================================
+
+function downloadCanvas(
+    canvas,
+    filename
+) {
+
+    if (!canvas) {
+
+        alert(
+            'No image was generated.'
+        );
+
+        return;
+    }
+
+
+    canvas.toBlob(
+        function(blob) {
+
+            if (!blob) {
+
+                alert(
+                    'Could not create PNG.'
+                );
+
+                return;
+            }
+
+
+            const url =
+                URL.createObjectURL(blob);
+
+
+            const link =
+                document.createElement('a');
+
+
+            link.href =
+                url;
+
+            link.download =
+                filename;
+
+
+            // Important for iOS/Safari/GitHub Pages
+            document.body.appendChild(link);
+
+            link.click();
+
+            document.body.removeChild(link);
+
+
+            setTimeout(
+                () => {
+                    URL.revokeObjectURL(url);
+                },
+                1500
+            );
+        },
+        'image/png'
+    );
+}
+
+
+// ============================================================
+// SPRITE SHEET BUTTON
+// ============================================================
+
+if (spriteSheetButton) {
+
+    spriteSheetButton.addEventListener(
+        'click',
+        async () => {
+
+            try {
+
+                const result =
+                    await buildTypewriterFrames();
+
+
+                if (!result) {
+                    return;
+                }
+
+
+                // ==================================================
+                // INDIVIDUAL FRAME
+                // ==================================================
+
+                if (
+                    spriteExportMode &&
+                    spriteExportMode.value === 'frame'
+                ) {
+
+                    const frameNumber =
+                        Math.max(
+                            0,
+                            Math.min(
+                                result.TOTAL_SLOTS - 1,
+                                Number(
+                                    frameSelect?.value || 1
+                                ) - 1
+                            )
+                        );
+
+
+                    const col =
+                        frameNumber %
+                        result.COLUMNS;
+
+
+                    const row =
+                        Math.floor(
+                            frameNumber /
+                            result.COLUMNS
+                        );
+
+
+                    const frame =
+                        document.createElement(
+                            'canvas'
+                        );
+
+
+                    frame.width =
+                        result.FRAME_WIDTH;
+
+                    frame.height =
+                        result.FRAME_HEIGHT;
+
+
+                    const frameCtx =
+                        frame.getContext('2d');
+
+
+                    frameCtx.clearRect(
+                        0,
+                        0,
+                        result.FRAME_WIDTH,
+                        result.FRAME_HEIGHT
+                    );
+
+
+                    frameCtx.drawImage(
+
+                        result.canvas,
+
+                        col *
+                            result.FRAME_WIDTH,
+
+                        row *
+                            result.FRAME_HEIGHT,
+
+                        result.FRAME_WIDTH,
+
+                        result.FRAME_HEIGHT,
+
+                        0,
+                        0,
+
+                        result.FRAME_WIDTH,
+
+                        result.FRAME_HEIGHT
+                    );
+
+
+                    downloadCanvas(
+                        frame,
+                        `typewriter-frame-${frameNumber + 1}-170x170.png`
+                    );
+
+
+                    return;
+                }
+
+
+                // ==================================================
+                // FULL SPRITE SHEET
+                // ==================================================
+
+                downloadCanvas(
+                    result.canvas,
+                    'typewriter-sprite-sheet-1020x1020.png'
+                );
+
+            } catch (error) {
+
+                console.error(
+                    'Sprite export error:',
+                    error
+                );
+
+                alert(
+                    'Sprite sheet export failed. ' +
+                    'Open the browser console for details.'
+                );
+            }
+        }
+    );
+}
