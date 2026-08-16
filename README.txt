@@ -6,5 +6,5 @@ Sprite sheet format:
 - Total sheet: 1020 x 504 pixels
 - 36 frames total
 - Sprite background is transparent.
-- Font: Liberation Sans
+- Font:pretends or wtv
 - Text color: white
